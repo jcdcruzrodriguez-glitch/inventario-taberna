@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inventario">
+<title>Inventario Irish Tavern</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080810;
+  --bg2: #0f0f1a;
+  --bg3: #16161f;
+  --bg4: #1e1e2a;
+  --border: #242432;
+  --border2: #2e2e40;
+  --text: #eeeef8;
+  --text2: #8888a8;
+  --text3: #4a4a62;
+  --danger: #ff4444;
+  --success: #22c55e;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --nav-h: 64px;
+  --top-h: 112px;
+  --active: #3B82F6;
+  --active-dim: rgba(59,130,246,0.1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+/* TOP BAR */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: env(safe-area-inset-top, 10px) 14px 0;
+}
+.top-row1 {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 9px;
+}
+.app-title {
+  font-family: var(--font-head); font-size: 20px; font-weight: 800;
+  letter-spacing: -0.5px; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.app-title .tag {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  background: var(--active-dim); color: var(--active);
+  border: 1px solid var(--active); border-radius: 4px;
+  padding: 2px 6px; letter-spacing: 1px;
+}
+.date-badge {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text3);
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 3px 8px; border-radius: 6px;
+}
+.top-row2 {
+  display: flex; gap: 8px; align-items: center; padding-bottom: 9px;
+}
+#search {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 11px;
+  font-family: var(--font-body); font-size: 15px; color: var(--text);
+  outline: none;
+}
+#search::placeholder { color: var(--text3); }
+#search:focus { border-color: var(--active); }
+.btn-report {
+  position: relative; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 12px;
+  font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  color: var(--text2); cursor: pointer; white-space: nowrap; letter-spacing: .5px;
+}
+.btn-report.has-items { color: var(--active); border-color: var(--active); }
+.btn-report .badge {
+  position: absolute; top: -6px; right: -6px;
+  background: var(--active); color: #fff;
+  font-size: 10px; font-weight: 700; border-radius: 10px;
+  padding: 1px 5px; min-width: 18px; text-align: center;
+}
+
+/* SCROLL */
+#scroll-area {
+  position: fixed;
+  top: var(--top-h); left: 0; right: 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 6px 0 16px;
+}
+
+/* CATEGORY HEADER */
+.cat-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 14px 5px;
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg);
+}
+.cat-label {
+  font-family: var(--font-head); font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--text3);
+}
+.cat-line { flex: 1; height: 1px; background: var(--border); }
+.unit-pill {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  padding: 2px 7px; border-radius: 4px; letter-spacing: .5px;
+  border: 1px solid var(--border2); color: var(--text3);
+  background: var(--bg3);
+}
+.unit-pill.active { color: var(--active); border-color: var(--active); background: var(--active-dim); }
+
+/* PRODUCT ROW */
+.prod-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+}
+.prod-row.has-qty { background: var(--active-dim); }
+.prod-info { flex: 1; min-width: 0; }
+.prod-name {
+  font-size: 14px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.prod-row.has-qty .prod-name { color: var(--active); font-weight: 600; }
+.prod-unit {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text3); margin-top: 1px;
+}
+.qty-controls {
+  display: flex; align-items: center;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; flex-shrink: 0;
+}
+.qty-btn {
+  width: 36px; height: 38px; border: none; background: transparent;
+  color: var(--text2); font-size: 20px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.qty-btn:active { background: var(--border); }
+.qty-sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.qty-val {
+  width: 40px; text-align: center;
+  font-family: var(--font-mono); font-size: 17px; font-weight: 500;
+  color: var(--text); background: transparent; border: none; outline: none;
+  -moz-appearance: textfield;
+}
+.qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance: none; }
+.qty-val.active { color: var(--active); }
+
+/* BOTTOM NAV */
+#bottomnav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bg2); border-top: 1px solid var(--border);
+  display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  scrollbar-width: none;
+}
+#bottomnav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  flex: 0 0 auto; min-width: 70px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer; border: none; background: transparent; padding: 6px 8px;
+}
+.nav-bar { width: 22px; height: 3px; border-radius: 2px; background: var(--text3); }
+.nav-btn.active .nav-bar { height: 4px; background: var(--nav-color, var(--active)); }
+.nav-label {
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: .5px; color: var(--text3); white-space: nowrap;
+}
+.nav-btn.active .nav-label { color: var(--nav-color, var(--active)); }
+.nav-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+.nav-btn.has-data .nav-dot { background: var(--nav-color, var(--text3)); }
+
+/* REPORT PANEL */
+#report-panel {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.8); display: none; align-items: flex-end;
+}
+#report-panel.open { display: flex; }
+.report-sheet {
+  width: 100%; max-height: 90vh;
+  background: var(--bg2); border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+  animation: slideup .22s ease-out;
+}
+@keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.report-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--border2); margin: 11px auto 0;
+}
+.report-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+}
+.report-title {
+  font-family: var(--font-head); font-size: 18px; font-weight: 800;
+}
+.report-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--bg3); border: none; color: var(--text2);
+  font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.report-body { flex: 1; overflow-y: auto; padding: 12px 18px; }
+.report-prov-block { margin-bottom: 18px; }
+.report-prov-name {
+  font-family: var(--font-head); font-size: 12px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 5px; display: inline-block; margin-bottom: 8px;
+}
+.report-item {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.report-item:last-child { border-bottom: none; }
+.report-item-name { color: var(--text); flex: 1; padding-right: 10px; }
+.report-item-right {
+  display: flex; align-items: baseline; gap: 4px;
+}
+.report-item-qty {
+  font-family: var(--font-mono); font-size: 16px; font-weight: 500;
+  min-width: 24px; text-align: right;
+}
+.report-item-unit {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text3);
+}
+.report-empty {
+  text-align: center; padding: 40px 20px;
+  font-family: var(--font-head); font-size: 16px; color: var(--text3); letter-spacing: 1px;
+}
+.report-footer {
+  display: flex; gap: 9px; padding: 11px 18px 4px; border-top: 1px solid var(--border);
+}
+.btn-action {
+  flex: 1; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
+  font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: .5px;
+}
+.btn-clear { background: var(--bg3); color: var(--danger); border: 1px solid var(--danger); }
+.btn-export { background: var(--active); color: #fff; }
+
+/* TOAST */
+#toast {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: var(--bg4); border: 1px solid var(--border2);
+  padding: 12px 24px; border-radius: 12px;
+  font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--text);
+  z-index: 300; pointer-events: none; opacity: 0; transition: opacity .2s;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="top-row1">
+    <div class="app-title">
+      INVENTARIO
+      <span class="tag">IRISH TAVERN</span>
+    </div>
+    <div class="date-badge" id="date-badge">—</div>
+  </div>
+  <div class="top-row2">
+    <input type="search" id="search" placeholder="Buscar producto..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn-report" id="btn-report" onclick="openReport()">
+      INFORME
+      <span class="badge" id="report-badge" style="display:none">0</span>
+    </button>
+  </div>
+</div>
+
+<div id="scroll-area"></div>
+<div id="bottomnav"></div>
+
+<div id="report-panel" onclick="closePanelIfBg(event)">
+  <div class="report-sheet">
+    <div class="report-handle"></div>
+    <div class="report-head">
+      <div class="report-title">INVENTARIO <span id="report-date" style="color:var(--text2)"></span></div>
+      <button class="report-close" onclick="closeReport()">✕</button>
+    </div>
+    <div class="report-body" id="report-body"></div>
+    <div class="report-footer">
+      <button class="btn-action btn-clear" onclick="confirmClear()">BORRAR TODO</button>
+      <button class="btn-action btn-export" onclick="exportInventory()">COMPARTIR</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">¡Guardado!</div>
+
+<script>
+const DATA = {"TARDIO":{"color":"#3B82F6","cats":{"Cervezas":{"unit":"cajas","items":["ALHAMBRA RESERVA 1925 1/3","ALHAMBRA RESERVA ROJA 1/3","CERVEZA BRUTUS 1/3","CERVEZA BUDWEISER 0.33X24","FOUNDERS ALL DAY 35.5CL","FOUNDERS CENTENNIAL IPA 35.5CL","LEFFE TRIPLE 24BT 1/3","MAESTRA RET C.24 BOT 1/3","MAHOU 00 TOSTADA RET 1/3","MAHOU 5 ESTRELLAS RET 1/3","MAHOU CORONA 35.5CL","RON LEGENDARIO ELIXIR 7 AÑOS","STELLA ARTOIS NR 24 0.33L"]}}},"CARBALLO":{"color":"#F97316","cats":{"Barriles":{"unit":"barriles","items":["AFFLIGEM DOUBLE BARRIL 20L","GUINNES 30 LITROS","GUINNESS HOP HOUSE 13 BARRIL 30L","MURPHY BARRIL 30L ROJA","PAULANER HWEISBEER TRIGO B/30L","PAULANER ORGMUNCHNER B/30L"]},"Cerveza Botella":{"unit":"cajas","items":["18/70 LA RUBIA BR CAJA 24X33CL","AMSTEL 1/3 RET","AMSTEL ORO 0,0 1/3 RET TOSTADA","BIRRA MORETTI 1/3 NR","CC 1/3 NORMAL RET","CC SIN GLUTEN 1/3 S/R","CRUZCAMPO RADLER RET 1/3","DESPERADOS BR CAJA 24X33CL","EL AGUILA BR CAJA 24X33CL","EL AGUILA SIN FILTRAR S/RET","EL ALCAZAR 1/3 S/R C12","HEINEKEN 0,0% 1/3 RET","HEINEKEN 1/3 RET","JUDAS 1/3 12 NR","LADRON DE MANZANAS 1/3 RET","LDV LIMON BR CAJA 24X33CL"]},"Ginebra":{"unit":"botellas","items":["BEEFEATER 0.70","CIROC APPLE 0.7","CIROC RED BERRY 0.7","COOPER DOG WHKY 0.70CL","G.BOMBAY ORIGINAL 0.70","G.BOMBAY SAPPHIRE 0.70","GIN LARIOS 0.70","GIN NORDES 0.70","GIN SEAGRAM'S 0.70CL","GINEBRA TANQUERAY 0.70L","LARIOS 12 0.70","ROKU GIN SELECT EDITION 0.70","TANQUERAY 0,0 0.70CL"]},"Licores y Otros":{"unit":"botellas","items":["AMARETO DISARONNO ORIGINALE 0.70","APEROL 0.70CL","CINZANO TO SPRITZ 0.75CL","CREMA RUAVIEJA 0.70","L.MANZANA S/A RIVES","LC BAILEYS 0.70L","MARTINI ROSSO 100CL","ODK MIX MELON 75CL","ODK MIX SANDIA 75CL","PETRONI VERMU ROJO 1L","SALOBREÑA TINTO BENJAMIN 24U","SHERIDANS 0.70"]},"Ron":{"unit":"botellas","items":["BACARDI C.BLANCA 1L","CACIQUE 0.70L","HAVANA 7 0.70","HAVANA ORIGEN 0.70CL","RON BRUGAL 1888","RON BRUGAL AÑEJO 0.70","RON LEGENDARIO ELIXIR DE CUBA 7 AÑOS","ZACAPA CENT 23Y 70CL"]},"Whisky / Bourbon":{"unit":"botellas","items":["BALLANTINES 700CC","CONNEMARA TUBED 0.70","J.W.DOUBLE BLACK","J.WALKER ETIQUETA NEGRA 0.70L","J.WALKER ETIQUETA ROJA 0.70L","WHISKY BUSHMILLS 0.70","WHISKY DYC 0.70L","WHISKY J.B. 700","WHISKY JAMESON 0.70CL"]}}},"INBRAEX":{"color":"#22C55E","cats":{"Curaçao / Bitter":{"unit":"botellas","items":["CREMA DE CASSIS MONIN 0.70L","DRY CURACAO MONIN 0.70L","DRY CURACAO YUZU MONIN 0.70L"]},"Licores (Monin)":{"unit":"botellas","items":["LICOR BELLOTA S/A 0.70L","LICOR BLUE CURACAO MONIN 0.70L","LICOR COCO MONIN 0.70L","LICOR DE BELLOTA SABORES EXTREMEÑOS 0.70L","LICOR MELOCOTON MONIN 0.70L","LICOR PLATANO MONIN 0.70L"]},"Otros":{"unit":"botellas","items":["CREMA CHOCOLATE BLANCO MONIN 0.50L","MEZCAL ARTESANAL ENCANTADO 0.70L","PISCO BARSOL SELECTO ACHOLADO","RON MATUSALEM 7 AÑOS 0.70L"]},"Purés de Frutas (Monin)":{"unit":"botellas","items":["PURE COCO MONIN 1L","PURE DE PIÑA MONIN 1L","PURE FRAMBUESA MONIN 1L","PURE FRESA MONIN 1L","PURE FRUTOS ROJOS MONIN 1L","PURE FRUTAS PASION MONIN 1L","PURE MANGO MONIN 1L","PURE MANZANA VERDE MONIN 1L","PURE MELOCOTON MONIN 1L","PURE PLATANO MONIN 1L","PURE RHUBARB MONIN 1L"]},"Siropes (Monin)":{"unit":"botellas","items":["SIROPE DE ALMENDRA MONIN 0.70L","SIROPE GINGER MONIN 0.70L","SIROPE MANGO SPICY MONIN 0.70L","SIROPE POMELO ROSA MONIN 0.70L","SIROPE RON CARIBEAN MONIN 0.70L","SIROPE SPICY MONIN 0.70L"]}}},"SCHWEPPES":{"color":"#EAB308","cats":{"Nestea / Té Frío":{"unit":"cajas","items":["NESTEA LIMON 1/3 CRISTAL X24","NESTEA SIN AZUCAR LIMON 1/3 CRISTAL X24","NESTEA TE VERDE MARACUYA 1/3 CRISTAL X24","RBLISS LEM MIXER VR20 C24","RBLISS NAR VR20 C24","RBLISS SIG TON WTR VR20 C24"]},"Refrescos":{"unit":"cajas","items":["BITTER KAS NO RET 200 BAND","SEVEN UP FREE RET 200","TRS LIMON LOW CAL RET 24X1X275","TRS NARANJA LOW CAL RET 24X1X2"]},"Tónicas y Aguas":{"unit":"cajas","items":["SCH GINGER LOW CAL RET 200 28U","SCH SEL LIMON GNR 12X1X20CL","SCH SEL POMELO GNR 12X1X20CL","SCH SEL TONICA GNR 24X1X20CL","SCH SODA 200RE 28U","SCH TONICA RET 28X1X200ML","SCH TONIC ZERO 20CL RET 28U","SCH WILD BERRY RET 28X1X20CL"]},"Zumos Vida Batuka":{"unit":"cajas","items":["VIDA MELOCOTON BA 200SR 24U","VIDA NARANJA BATU 200SR 24U","VIDA PINA BATUKA 200SR 24U","VIDA TOMATE BATUKA 200SR 24U"]}}},"COCA COLA":{"color":"#EF4444","cats":{"Agua":{"unit":"cajas","items":["AQUABONA AGUA 50CL"]},"Coca Cola":{"unit":"cajas","items":["COCACOLA LIG VR237 C24","COCACOLA VR237 C24","COCACOLA ZER VR237 C24","COCACOLA ZER ZER VR237 C24"]},"Monster Energy":{"unit":"cajas","items":["MONSTER ENERGY 250ML","MONSTER ENERGY 500ML","MONSTER ENERGY ZERO ULTRA SUGAR FREE 250ML","MONSTER ENERGY ZERO ULTRA SUGAR FREE 500ML","MONSTER MANGO LOCO 250ML","MONSTER MANGO LOCO 500ML"]},"Otras":{"unit":"cajas","items":["AQUARIUS LIMON","AQUARIUS NARANJA","FANTA LIM VR237 C24","FANTA NAR VR237 C24","LIMONADA MINUTE MAID L&N","SPRITE VR20 C24"]},"Royal Bliss":{"unit":"cajas","items":["ROYAL BLISS LIMON 20CL C24","ROYAL BLISS NARANJA 20CL C24","ROYAL BLISS YUZU 20CL C24"]}}},"BIERWINKEL":{"color":"#8B5CF6","cats":{"Cervezas Especiales":{"unit":"cajas","items":["CHIMAY 150 33CL","CHIMAY AZUL 33CL","CHIMAY BLANCA TRIPLE 33CL","CHIMAY ROJA 33CL","DELIRIUM RED 33CL","DELIRIUM TREMENS 33CL","DUVEL 33CL","GULDEN DRAAK 33CL","GULDEN DRAAK FIRE 33CL","GULDEN DRAAK IMPERIAL STOUT 33CL","GULDEN DRAAK SMOKED 33CL","GUINNESS 8 33CL","HOUBLON CHOUFFE IPA 33CL","KASTEEL TRIPLE 33CL","LA CHOUFFE 33CL","SAINT BERNARDUS ABT SIXTUS 10 33CL"]},"Sidras Magners":{"unit":"cajas","items":["MAGNERS SIDRA BERRY 56.8CL","MAGNERS SIDRA MANZANA 56.8CL","MAGNERS SIDRA PEAR 56.8CL"]}}},"BARRERO":{"color":"#EC4899","cats":{"Licores Especiales":{"unit":"botellas","items":["AMARGUINHA 70CL","BUSCAVIDAS WHISKY 70CL","CACHACA IRACEMA 75CL","CREMA CARAMELO AMARGUINHA 70CL","CREMA CHOCOLATE AMARGUINHA 70CL","EXOTICA GIN 1890 70CL","GIN MARTIN MILLERS 70CL","GINEBRA FOXTALE CITRUS 70CL","GINEBRA FOXTALE MARACUYA 70CL","GINEBRA FOXTALE MELON 70CL","LICOR 43 CHOCOLATE 70CL","LICOR BEIRAO 70CL","LIMONCELLO VILLA MASSA 70CL","NIKKA FROM THE BARREL 500ML","VODKA KHOR PLATINUM 70CL","WHISKY DUCK TALE 70CL"]},"Refrescos Premium":{"unit":"cajas","items":["AGUA C/GAS PEDRAS VID250 X24","FEVERTREE INDIAN TONIC 20CL X24","FEVERTREE RASPBERRY 20CL X24","NESTEA LIMON 1/3 CRISTAL X24","NESTEA SIN AZUCAR LIMON 1/3 CRISTAL X24","NESTEA TE VERDE MARACUYA 1/3 CRISTAL X24"]},"Vinos y Espumosos":{"unit":"botellas","items":["BRUT IMPERIAL MOET CHANDON 75CL","EL LOCO DE FINCA LA COLINA 75CL","FOLLADOR PROSECCO TREVISO 75CL","LA CHALADA BY VINOS SANZ 75CL","RAMON BILBAO CRIANZA 75CL"]}}},"DYEXCO":{"color":"#14B8A6","cats":{"Destilados":{"unit":"botellas","items":["GIN HENDRICK'S 0.70","HENDRICK'S ANOTHER 0.70","JACK DANIEL'S 0.70","JACK DANIEL'S TENNESSEE APPLE 0.70","LARANXA TRIPLE SECO 0.7","RON BARCELO AÑEJO 0.70","VERMOUTH YZAGUIRRE BLANCO 1L","WHISKY BOLD CREW 0.70"]}}},"BEBERCIOS FINOS":{"color":"#F59E0B","cats":{"Destilados Especiales":{"unit":"botellas","items":["BITTER FEE BROTHERS CHOCOLATE","LIC DRAMBUIE 0.7","LIC PASSOA MARACUYÁ","PISCO BARSOL SELECTO ACHOLADO","VOD ABSOLUT VAINILLA 0.7","VOD RUSSIAN STANDART 1894 LITRO"]}}},"JUAN HIDALGO":{"color":"#78716C","cats":{"Snacks":{"unit":"bolsas","items":["GOMAS FINI MIX PICA SOUR LITTLE","KONOS FRITOS 790GR","PATATAS HH 500GR","PICADITA MIEL-MOSTAZA 1KG"]}}},"MONTANERA DE LA DEHESA":{"color":"#84CC16","cats":{"Cervezas y Destilados":{"unit":"botellas","items":["1906 REDVINTAGE 33CLX24 RET","EG 1906 33CL RETORNABLE","EG RIVERA REPOSADA BNR 33X24","FDE FORMENTERA 70CL","RON AREHUCAS CARTA ORO 70CL"]}}},"SANCHEZ MONTERO":{"color":"#0EA5E9","cats":{"Cerveza Ambar":{"unit":"cajas","items":["AMBAR 000 TOSTADA 1/3 RET 24BOT","AMBAR ESP LN 1/3 RET 24BOT","AMBAR LA 125 1/3 12B NR","AMBAR RADLER 1/3 RET 24BOT"]}}}};
+
+const PROVS = Object.keys(DATA);
+const STORAGE_KEY = 'inventario_irish_tavern_v1';
+
+let currentProv = PROVS[0];
+let quantities = {};
+
+// Load from localStorage
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) quantities = JSON.parse(saved);
+  } catch(e) { quantities = {}; }
+}
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(quantities)); } catch(e) {}
+}
+
+function key(prov, name) { return prov + '||' + name; }
+function getQty(prov, name) { return quantities[key(prov, name)] || 0; }
+function setQty(prov, name, val) {
+  val = Math.max(0, parseInt(val) || 0);
+  if (val === 0) delete quantities[key(prov, name)];
+  else quantities[key(prov, name)] = val;
+  saveData();
+  updateNav();
+  updateBadge();
+}
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function formatDate() {
+  const d = new Date();
+  return d.toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short' }).toUpperCase();
+}
+
+function buildNav() {
+  const nav = document.getElementById('bottomnav');
+  nav.innerHTML = PROVS.map(p => {
+    const label = p.length > 8 ? p.substring(0,8) + '…' : p;
+    return `<button class="nav-btn${p===currentProv?' active':''}" data-prov="${p}"
+      onclick="switchProv('${p}')" style="--nav-color:${DATA[p].color}">
+      <div class="nav-bar"></div>
+      <div class="nav-label">${label}</div>
+      <div class="nav-dot"></div>
+    </button>`;
+  }).join('');
+}
+
+function switchProv(prov) {
+  currentProv = prov;
+  const color = DATA[prov].color;
+  document.documentElement.style.setProperty('--active', color);
+  document.documentElement.style.setProperty('--active-dim', hexToRgba(color, 0.1));
+  document.getElementById('search').value = '';
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.prov === prov));
+  renderList();
+  document.getElementById('scroll-area').scrollTop = 0;
+}
+
+function renderList(filter) {
+  const q = (filter || document.getElementById('search').value || '').toLowerCase().trim();
+  const prov = DATA[currentProv];
+  const color = DATA[currentProv].color;
+  let html = '';
+
+  Object.entries(prov.cats).forEach(([cat, cdata]) => {
+    const filtered = q ? cdata.items.filter(n => n.toLowerCase().includes(q)) : cdata.items;
+    if (!filtered.length) return;
+    const withQty = filtered.filter(n => getQty(currentProv, n) > 0);
+    const hasItems = withQty.length > 0;
+    html += `<div class="cat-header">
+      <div class="cat-label">${cat}</div>
+      <div class="cat-line"></div>
+      <div class="unit-pill ${hasItems?'active':''}">${cdata.unit.toUpperCase()}</div>
+    </div>`;
+
+    filtered.forEach((name, i) => {
+      const qty = getQty(currentProv, name);
+      const hasQty = qty > 0;
+      const esc = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += `<div class="prod-row ${hasQty?'has-qty':''}">
+        <div class="prod-info">
+          <div class="prod-name">${name}</div>
+          <div class="prod-unit">${cdata.unit}</div>
+        </div>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="adj('${currentProv}','${esc}',-1)">−</button>
+          <div class="qty-sep"></div>
+          <input class="qty-val ${hasQty?'active':''}" type="number" min="0"
+            value="${qty||''}" placeholder="0"
+            onchange="setQtyR('${currentProv}','${esc}',this.value)"
+            onfocus="this.select()">
+          <div class="qty-sep"></div>
+          <button class="qty-btn" onclick="adj('${currentProv}','${esc}',1)">+</button>
+        </div>
+      </div>`;
+    });
+  });
+
+  if (!html) html = `<div style="text-align:center;padding:60px 20px;color:var(--text3);font-family:var(--font-head);font-size:16px;letter-spacing:1px">SIN RESULTADOS</div>`;
+  document.getElementById('scroll-area').innerHTML = html;
+}
+
+function adj(prov, name, delta) {
+  setQty(prov, name, Math.max(0, getQty(prov, name) + delta));
+  renderList();
+}
+function setQtyR(prov, name, val) { setQty(prov, name, val); renderList(); }
+
+function updateNav() {
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    const p = b.dataset.prov;
+    const has = Object.keys(quantities).some(k => k.startsWith(p + '||'));
+    b.classList.toggle('has-data', has);
+  });
+}
+
+function updateBadge() {
+  const total = Object.keys(quantities).length;
+  const badge = document.getElementById('report-badge');
+  badge.textContent = total;
+  badge.style.display = total > 0 ? 'block' : 'none';
+  document.getElementById('btn-report').classList.toggle('has-items', total > 0);
+}
+
+function openReport() {
+  let html = ''; let hasAny = false;
+  PROVS.forEach(prov => {
+    const items = Object.entries(quantities)
+      .filter(([k]) => k.startsWith(prov + '||'))
+      .map(([k, v]) => {
+        const name = k.split('||')[1];
+        const unit = getUnit(prov, name);
+        return { name, qty: v, unit };
+      });
+    if (!items.length) return;
+    hasAny = true;
+    const c = DATA[prov].color;
+    html += `<div class="report-prov-block">
+      <div class="report-prov-name" style="color:${c};background:${hexToRgba(c,.12)}">${prov}</div>`;
+    items.forEach(i => {
+      html += `<div class="report-item">
+        <span class="report-item-name">${i.name}</span>
+        <div class="report-item-right">
+          <span class="report-item-qty" style="color:${c}">${i.qty}</span>
+          <span class="report-item-unit">${i.unit}</span>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  if (!hasAny) html = '<div class="report-empty">SIN DATOS<br>ANOTADOS</div>';
+  document.getElementById('report-body').innerHTML = html;
+  document.getElementById('report-date').textContent = formatDate();
+  document.getElementById('report-panel').classList.add('open');
+}
+function closeReport() { document.getElementById('report-panel').classList.remove('open'); }
+function closePanelIfBg(e) { if (e.target.id === 'report-panel') closeReport(); }
+
+function getUnit(prov, name) {
+  const cats = DATA[prov]?.cats || {};
+  for (const [cat, cdata] of Object.entries(cats)) {
+    if (cdata.items.includes(name)) return cdata.unit;
+  }
+  return '';
+}
+
+function confirmClear() {
+  if (confirm('¿Borrar todo el inventario? No se puede deshacer.')) {
+    quantities = {};
+    saveData();
+    updateNav();
+    updateBadge();
+    renderList();
+    closeReport();
+    showToast('¡Inventario borrado!');
+  }
+}
+
+function exportInventory() {
+  let lines = [`INVENTARIO IRISH TAVERN — ${formatDate()}\n`];
+  let hasAny = false;
+  PROVS.forEach(prov => {
+    const items = Object.entries(quantities)
+      .filter(([k]) => k.startsWith(prov + '||'))
+      .map(([k, v]) => ({ name: k.split('||')[1], qty: v, unit: getUnit(prov, k.split('||')[1]) }));
+    if (!items.length) return;
+    hasAny = true;
+    lines.push(`\n── ${prov} ──`);
+    items.forEach(i => lines.push(`  ${i.name}: ${i.qty} ${i.unit}`));
+  });
+  if (!hasAny) { showToast('Sin datos'); return; }
+  const text = lines.join('\n');
+  if (navigator.share) {
+    navigator.share({ title: 'Inventario Irish Tavern', text }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('¡Copiado!'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('¡Copiado!');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+document.getElementById('search').addEventListener('input', e => renderList(e.target.value));
+
+// Init
+loadData();
+document.getElementById('date-badge').textContent = formatDate();
+const initColor = DATA[PROVS[0]].color;
+document.documentElement.style.setProperty('--active', initColor);
+document.documentElement.style.setProperty('--active-dim', hexToRgba(initColor, 0.1));
+buildNav();
+updateNav();
+updateBadge();
+renderList();
+</script>
+</body>
+</html>
