@@ -149,6 +149,55 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance: none; }
 .qty-val.active { color: var(--active); }
 
+/* MANUAL PRODUCTS */
+.manual-toolbar { padding: 10px 14px 6px; }
+.manual-add-btn {
+  width: 100%; padding: 12px; border-radius: 10px;
+  border: 1px dashed var(--active); background: var(--active-dim);
+  color: var(--active); font-family: var(--font-head); font-size: 13px;
+  font-weight: 700; letter-spacing: .6px; cursor: pointer;
+}
+.manual-help {
+  padding: 8px 14px 12px; color: var(--text3); font-size: 12px;
+  line-height: 1.4; text-align: center;
+}
+.manual-delete {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text3); font-size: 16px; cursor: pointer;
+}
+.manual-delete:active { color: var(--danger); border-color: var(--danger); }
+.manual-panel {
+  position: fixed; inset: 0; z-index: 220; background: rgba(0,0,0,.82);
+  display: none; align-items: flex-end;
+}
+.manual-panel.open { display: flex; }
+.manual-sheet {
+  width: 100%; background: var(--bg2); border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom, 16px);
+  animation: slideup .22s ease-out;
+}
+.manual-form { padding: 14px 18px 18px; }
+.form-field { display: block; margin-bottom: 13px; }
+.form-label {
+  display: block; margin-bottom: 5px; color: var(--text2);
+  font-family: var(--font-head); font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.form-control {
+  width: 100%; padding: 11px 12px; border-radius: 9px;
+  border: 1px solid var(--border2); background: var(--bg3);
+  color: var(--text); font-family: var(--font-body); font-size: 16px; outline: none;
+}
+.form-control:focus { border-color: var(--active); }
+.form-actions { display: flex; gap: 9px; margin-top: 18px; }
+.form-actions button {
+  flex: 1; padding: 13px; border-radius: 10px; cursor: pointer;
+  font-family: var(--font-head); font-size: 13px; font-weight: 700;
+}
+.btn-cancel { border: 1px solid var(--border2); background: var(--bg3); color: var(--text2); }
+.btn-save { border: none; background: var(--active); color: #fff; }
+
 /* BOTTOM NAV */
 #bottomnav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
@@ -290,26 +339,82 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   </div>
 </div>
 
+<div id="manual-panel" class="manual-panel" onclick="closeManualPanelIfBg(event)">
+  <div class="manual-sheet">
+    <div class="report-handle"></div>
+    <div class="report-head">
+      <div class="report-title">AÑADIR PRODUCTO</div>
+      <button class="report-close" type="button" onclick="closeManualPanel()">✕</button>
+    </div>
+    <form id="manual-form" class="manual-form" onsubmit="saveManualProduct(event)">
+      <label class="form-field">
+        <span class="form-label">Nombre del producto</span>
+        <input class="form-control" id="manual-name" maxlength="100" required
+          placeholder="Ej.: SERVILLETAS NEGRAS">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Categoría</span>
+        <input class="form-control" id="manual-category" maxlength="50"
+          placeholder="Ej.: LIMPIEZA, BEBIDAS, ALMACÉN">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Cómo se contabiliza</span>
+        <select class="form-control" id="manual-unit" onchange="toggleCustomUnit()">
+          <option value="unidades">Unidades</option>
+          <option value="cajas">Cajas</option>
+          <option value="botellas">Botellas</option>
+          <option value="barriles">Barriles</option>
+          <option value="bolsas">Bolsas</option>
+          <option value="paquetes">Paquetes</option>
+          <option value="latas">Latas</option>
+          <option value="garrafas">Garrafas</option>
+          <option value="kilos">Kilos</option>
+          <option value="litros">Litros</option>
+          <option value="otro">Otra medida…</option>
+        </select>
+      </label>
+      <label class="form-field" id="custom-unit-field" style="display:none">
+        <span class="form-label">Nombre de la medida</span>
+        <input class="form-control" id="manual-custom-unit" maxlength="30"
+          placeholder="Ej.: bandejas, rollos, cubos">
+      </label>
+      <div class="form-actions">
+        <button class="btn-cancel" type="button" onclick="closeManualPanel()">CANCELAR</button>
+        <button class="btn-save" type="submit">GUARDAR PRODUCTO</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="toast">¡Guardado!</div>
 
 <script>
 const DATA = {"TARDIO":{"color":"#3B82F6","cats":{"Cervezas Mahou y especiales":{"unit":"cajas","items":["MAHOU 5 ESTRELLAS RET. 24 BOT. 1/3","STELLA ARTOIS NR 24 × 0,33 L","MAHOU 0,0 TOSTADA RET. 24 BOT. 1/3","ALHAMBRA RESERVA 1925 1/3 NR","LEFFE TRIPLE 24 BOT. 1/3","CORONA LOOSE 35,5 CL × 24","FOUNDERS CENTENNIAL IPA 35,5 CL × 24","BUDWEISER 0,33 × 24","ALHAMBRA RESERVA ROJA 1/3 NR","MAESTRA RET. 24 BOT. 1/3","BRUTUS 1/3 CAJA 12","FOUNDERS ALL DAY 35,5 CL × 24","CORONA PACK 4 × 6 BOT. 1/3","ALHAMBRA RESERVA 1925 30 CL RET."]},"Destilados y energéticas":{"unit":"unidades","items":["RON LEGENDARIO ELIXIR 7 AÑOS 70 CL","RED BULL ENERGY DRINK LATA 250 ML"]}}},"SCHWEPPES":{"color":"#EAB308","cats":{"Tónicas y mixers":{"unit":"cajas","items":["SCHWEPPES TÓNICA RET. 28 × 200 ML","SCHWEPPES TÓNICA ZERO RET. 28 × 20 CL","SCHWEPPES SELECTION TÓNICA TOQUE DE LIMA 24 × 20 CL","SCHWEPPES SODA RET. 28 × 200 ML","SCHWEPPES WILD BERRY RET. 28 × 20 CL","SCHWEPPES POMELO RET. 28 × 200 ML","SCHWEPPES GINGER LOW CAL RET. 28 × 200 ML","SCHWEPPES SELECTION POMELO 12 × 20 CL","SCHWEPPES SELECTION LIMÓN 12 × 20 CL","SCHWEPPES SELECTION NARANJA 12 × 20 CL","SCHWEPPES SELECTION GINGER BEER 12 × 20 CL"]},"Refrescos":{"unit":"cajas","items":["SEVEN UP FREE RET. 24 × 200 ML","BITTER KAS NO RET. 24 × 200 ML","LA CASERA LIMÓN 1 L × 12","LA CASERA GASEOSA 1 L × 12","LA CASERA TINTO DE VERANO LIMÓN 275 ML × 24","LA CASERA TINTO DE VERANO LIMÓN RET. 275 ML × 24","TRINA NARANJA LOW CAL RET. 24 U","TRINA LIMÓN LOW CAL RET. 24 × 275 ML"]},"Zumos Vida":{"unit":"cajas","items":["VIDA NARANJA BATUKA 200 ML × 24","VIDA PIÑA BATUKA 200 ML × 24","VIDA MELOCOTÓN BATUKA 200 ML × 24","VIDA TOMATE BATUKA 200 ML × 24"]}}},"CARBALLO":{"color":"#F97316","cats":{"Barriles":{"unit":"barriles","items":["GUINNES 30 LITROS","PAULANER B/30 L ORGMUCHNER","MURPHY BARRIL 30 L ROJA","PAULANER B/30 L HWEISBEER TRIGO","AFFLIGEM DOUBLE BARRIL 20L SANKEY ES","GUINNESS HOP HOUSE 13 BARRIL 30L ES","LAGUNITAS IPA 20 LITROS","CC GRAN RSVA 20 LITROS"]},"Cerveza botella":{"unit":"cajas","items":["EL AGUILA SIN FILTRAR S/RET","HEINEKEN 1/3 RET","18/70 LA RUBIA BR CAJA 24X33CL ES","CC SIN GLUTEN 1/3 S/R","EL ALCAZAR 1/3 S/R C12","LADRON DE MANZANAS 1/3 RET","AMSTEL 1/3 RET","JUDAS 1/3 12 NR","CRUZCAMPO RADLER RET. 1/3","CC 1/3 NORMAL RET","DESPERADOS BR CAJA 24X33CL ES","AMSTEL ORO 0,0 1/3 RET TOSTADA","HEINEKEN 0,0% 1/3 RET","MORT SUBITE KRIEK LMABIC","EL AGUILA BR CAJA 24X33CL ES 2025","BIRRA MORETTI 1/3 NR","LDV LIMON BR CAJA 24X33CL ES","CRUZCAMPO 1904 BR CAJA 24 × 33 CL"]},"Ginebra":{"unit":"botellas","items":["GIN SEAGRAM'S 0.70CL","BEFFEATER 0.70","G.BOMBAY SAPPHIRE 0.70","GINEBRA TANQUERAY 0.70 L","GIN LARIOS 0.70","GIN NORDES 0.70","LARIOS 12 0.70","TANQUERAY 0,0 0.70CL","G.BOMBAY ORIGINAL 0.70","GIN GVINE FLORAISON 0.70","BEFFEATER 0,0 0.70","BEEFEATER BLACK 0.70","ROKU GIN SELECT EDITION 0.70","GIN MONKEY 47 0.5","BEEFEATER LIGHT 0.70","MALFY LIMONE 0.70CL","GIN BROCKSMANS 0.70","GINEBRA GORDONS 0,70L","AMPERSAND PINK 0.7","GIN RIVES 70 CL","GIN SEAGRAM'S 0,0 70 CL","GIN LARIOS POMELO 70 CL","AMPERSAND GIN 70 CL"]},"Whisky y bourbon":{"unit":"botellas","items":["J.WALKER E.RJ. 0,70L","WHISKY JAMESON 0.70 CL","WHISKY J.B. 700","BALLANTINES 700 CC","J.WALKER E.NEGRA 0.70 L","WHISKY DYC 0.70L","WHISKY BUSHMILLS 0.70","BALLANTINES 10A 0.70","W.WHITE LABEL 0.70","CHIVAS REGAL 18","BALLANTINES LIGHT 0.70","J.W.DOUBLE BLACK","WHISKY CUTTY SARK 0.70","DYC SINGLE MALT 10YO 0.70CL","COOPER DOG WHKY 0.70CL","CONNEMARA TUBED 0.70","WHISKY BLACK BUSH 0.70","WHISKY CARDHU 0,70","DYC SINGLE MALT 15YO 0.70CL","WHISKY 100 PIPERS","WHISKY DYC 8 AÑOS 0.70","FOUR ROSES 70CL","BOURBON JIM BEAM 0.70","ANGEL'S ENVY BOURBON 70 CL","LAGAVULIN 16 AÑOS 70 CL"]},"Ron":{"unit":"botellas","items":["BACARDI C.BLANCA 1L","RON LEGENDARIO ELIXIR DE CUBA 7 AÑOS","STA TERESA G.RESERVA 0.70","RON BRUGAL AÑEJO 0.70","RON BRUGAL 1888","CACIQUE 0.70 L","ZACAPA CENT 23Y 70CL","HAVANA ORIGEN 0,70 CL","HAVANA 7 0.70","CACIQUE 500 0.70 L","BUMBU ORIGINAL 0.70CL","FLOR DE CAÑA G.RSVA 0.7","BACARDI SPICED 0.70 CL","BACARDI SUPERIOR 70 CL","BACARDI SPICED 70 CL"]},"Vodka":{"unit":"botellas","items":["CIROC APPLE 0.7","CIROC RED BERRY 0.7","VODKA CARAMELO RIVES","VODKA ABSOLUT 0.70","GREY GOOSE ORIGINAL 0.70","CIROC COCONUT","VODKA ERISTOFF BLACK"]},"Tequila":{"unit":"botellas","items":["OLMECA REPOSADO 0.70","TEQUILA CUERVO ESPECIAL 0.70","TEQUILA 1800 CRISTALINO","TEQUILA RESERVA 1800 SILVER 0,70","TEQUILA RESERVA 1800 AÑEJO 0,70","TEQUILA RESERVA 1800 REPOSADO 0,70"]},"Vermut y aperitivos":{"unit":"botellas","items":["APEROL 0.70 CL","MARTINI S/A VIBRANTE 0.70","CINZANO TO SPRITZ 0.75CL","PETRONI VERMU ROJO 1L","MARTINI ROSSO 100CL","APEROL 1L","MARTINI S/A FLOREALE 0.70","PETRONI APERITIVO 1 L","MARTINI FIERO 70 CL","CAMPARI 70 CL"]},"Licores y otros":{"unit":"botellas","items":["ARABE AZUL SANI 0.70","LC BAILEYS 0,70L","SALOBREÑA TINTO BENJAMIN 24U","L.MANZANA S/A RIVES","AMARETO DISARONNO ORIGINALE 0.70","CREMA RUAVIEJA 0.70","L.MORA S/A 0.70","LC.HIERBAS RUAVIEJA 0.70","JAGERMEISTER","KAHLUA 0.70CL","PUERTO DE INDIAS FRESA 0.70","MARIA BRIZARD","CARLOS I BRANDY JEREZ","SHERIDANS 0.70","PUERTO DE INDIAS EXOTICA 0.70","LICOR FRANGELICO 0.70CL","ROCKFRUIT MELÓN","LECHE ASTURIANA 1,5 L HOSTELERIA ORIGINAL","CÓDIGO BLANCO 1530 70 CL","ANÍS DEL MONO DULCE 70 CL"]}}},"INBRAEX":{"color":"#22C55E","cats":{"Purés Monin":{"unit":"botellas","items":["PURÉ COCO MONIN 1 L","PURÉ PIÑA MONIN 1 L","PURÉ FRUTAS DE LA PASIÓN MONIN 1 L","PURÉ MANGO MONIN 1 L","PURÉ FRESA MONIN 1 L","PURÉ FRUTOS ROJOS MONIN 1 L","PURÉ PLÁTANO MONIN 1 L","PURÉ MANZANA VERDE MONIN 1 L","PURÉ FRAMBUESA MONIN 1 L","PURÉ RHUBARB MONIN 1 L","PURÉ MELOCOTÓN MONIN 1 L"]},"Siropes Monin":{"unit":"botellas","items":["SIROPE RON CARIBBEAN MONIN 70 CL","SIROPE ALMENDRA MONIN 70 CL","SIROPE SPICY MONIN 70 CL","SIROPE GINGER (JENGIBRE) MONIN 70 CL","SIROPE MANGO SPICY MONIN 70 CL","SIROPE POMELO ROSA MONIN 70 CL","SIROPE CAFÉ COLD BREW MONIN 70 CL"]},"Licores":{"unit":"botellas","items":["LICOR BELLOTA S/A SABORES EXTREMEÑOS 70 CL","LICOR DE BELLOTA SABORES EXTREMEÑOS 70 CL","LICOR COCO MONIN 70 CL","LICOR MELOCOTÓN MONIN 70 CL","LICOR PLÁTANO MONIN 70 CL","LICOR BLUE CURAÇAO MONIN 70 CL","LICOR KAHLÚA 70 CL","LICOR DRY CURAÇAO PIERRE FERRAND YUZU"]},"Otros":{"unit":"unidades","items":["MEZCAL ARTESANAL ENCANTADO 70 CL","RON MATUSALEM 7 AÑOS 70 CL","CREMA CHOCOLATE BLANCO MONIN 50 CL","PISCO BARSOL PURO QUEBRANTA 70 CL","RON PLANTATION XAYMACA 70 CL","RON KRAKEN BLACK SPICED 70 CL","RED BULL ENERGY DRINK 24 × 250 ML","FRAPPÉ DE CAFÉ MONIN 1,36 KG"]}}},"BIERWINKEL":{"color":"#8B5CF6","cats":{"Cervezas belgas y especiales":{"unit":"cajas","items":["CHIMAY 150 33 CL","CHIMAY AZUL 33 CL","CHIMAY ROJA 33 CL","CHIMAY BLANCA TRIPLE 33 CL","DELIRIUM RED 33 CL","DELIRIUM TREMENS 33 CL","DUVEL 33 CL","GULDEN DRAAK 33 CL","GULDEN DRAAK FIRE 33 CL","GULDEN DRAAK IMPERIAL STOUT 33 CL","HOUBLON CHOUFFE IPA 33 CL","KASTEEL TRIPLE 33 CL","LA CHOUFFE 33 CL","GULDEN DRAAK SMOKED 33 CL","SAINT BERNARDUS ABT SIXTUS 10 33 CL","GUINNESS 8 33 CL","DELIRIUM NOCTURNUM 33 CL"]},"Sidras Magners":{"unit":"cajas","items":["MAGNERS SIDRA BERRY 56,8 CL","MAGNERS SIDRA MANZANA 56,8 CL","MAGNERS SIDRA PEAR 56,8 CL"]},"Utensilios":{"unit":"unidades","items":["VASO CHIMAY CLASSIQUE 33 CL"]}}},"CAFENTO":{"color":"#64748B","cats":{"Café":{"unit":"unidades","items":["STRAC PROF RED E/96 (CAFÉ ROJO)","STRAC PROF DES E/96 (DESCAFEINADO)"]},"Chocolate caliente":{"unit":"unidades","items":["MONT N1 CHOCOLATE NEGRO","MONT N5 CHOCOLATE NEGRO NATA","MONT N7 CHOCOLATE LECHE","MONT N17 CHOCOLATE BLANCO"]},"Infusiones Montecelio":{"unit":"unidades","items":["MONT LAT3 NEGRO CANELA","MONT LAT8 VERDE MANZANA","MONT LAT13 ROJO VAINILLA","MONT LAT16 BLANCO LIMA","MONT LAT18 BLANCO PAPAYA","MONT LAT19 ROJO FLORAL","MONT LAT21 ROJO CHOCOLATE","MONT LAT23 ROJO MANZANA","MONT LAT27 LIMÓN JENGIBRE","MONT LAT29 REGALIZ MENTA","MONT LAT30 MANZANILLA","MONT LAT31 MENTA","MONT MATCHA LATTE","MONT CÚRCUMA LATTE","MONT REMOLACHA LATTE","MONT LAT10 VERDE HIERBABUENA","MONT LAT12 ROJO NARANJA-LIMÓN","MONT LAT24 FRUTAS DEL BOSQUE"]},"Tés fríos y kombucha":{"unit":"unidades","items":["ICED TEA MONT NEGRO LIMÓN","ICED TEA MONT NEGRO MELOCOTÓN","ICED TEA MONT FRUTAS DEL BOSQUE","ICED TEA MONT PIÑA COLADA","ICED TEA MONT ROOIBOS MANGO","ICED TEA MONT VERDE MOJITO","ICED TEA MONT GUARANÁ","MONTECELIO ICED TEA","MONT KOMBUCHA FRUTOS ROJOS","MONT KOMBUCHA LIMÓN","ICED TEA MONT ROOIBOS PERA"]},"Complementarios":{"unit":"unidades","items":["LECHE CONDENSADA FÁCIL 840 G","GALLETAS CHOCOLATE 1,7 KG","GALLETAS SURTIDO FRESA/MANZANA/NARANJA","AZÚCAR SOBRES MONT 1250","COLA-CAO 50 SOBRES","SIROPE VAINILLA 1 L","EDULCORANTE ASPARTAM EDU 250","JARRA CRISTAL MONTECELIO ICED TEA"]}}},"BARRERO":{"color":"#EC4899","cats":{"Destilados y licores":{"unit":"botellas","items":["AMARGUINHA 70CL X 6","VODKA KHOR PLATINUM 70CL X 6","LIMONCELLO VILLA MASSA 70CL X 6","LICOR BEIRAO 70CL X 6","GIN MARTIN MILLERS 70CL X 6","EXOTICA GIN 1890 6/70CL","CACHAÇA IRACEMA 75CL X 12","GINEBRA FOXTALE MARACUYA 70CL X 6","CREMA CARAMELO AMARGUINHA 70CL X 6","LICOR 43 CHOCOLATE 70CL X 6","GINEBRA FOXTALE CITRUS 70CL X 6","GINEBRA FOXTALE MELON 70CL X 6","CREMA CHOCOLATE AMARGUINHA 70CL X 6","NIKKA FROM THE BARREL 500ML","WHISKY DUCK TALE 70CL X 6","BUSCAVIDAS WHISKY 70CL X 6","GIN GOLD GRAIL 50 CL × 6"]},"Vinos y espumosos":{"unit":"botellas","items":["FOLLADOR PROSECCO TREVISO 75CL X 6","EL LOCO DE FINCA LA COLINA 75CL X 12","RAMON BILBAO CRIANZA 75CL X 6","LA CHALADA BY VINOS SANZ 75CL X 12","BRUT IMPERIAL MOET CHANDON 75CL"]},"Refrescos premium":{"unit":"cajas","items":["NESTEA TE VERDE MARACUYA 1/3 CRISTAL X 24","NESTEA LIMON 1/3 CRISTAL X 24","AGUA C/ GAS PEDRAS VID250 X 24","FEVERTREE RASPBERRY 20CL X 24","FEVERTREE INDIAN TONIC","NESTEA SIN AZUCAR LIMON 1/3 CRISTAL X 24"]},"Utensilios":{"unit":"unidades","items":["(CO6799GB) COPA GRAN BARMAN GIONA 620 ML"]}}},"DYEXCO":{"color":"#14B8A6","cats":{"Whisky":{"unit":"botellas","items":["JACK DANIEL'S 70 CL","JACK DANIEL'S TENNESSEE APPLE 70 CL","JACK DANIEL'S TENNESSEE FIRE 70 CL","JACK DANIEL'S SINGLE BARREL 70 CL","GENTLEMAN JACK 70 CL","WHISKY BOLD CREW 70 CL","WHISKY BUFFALO TRACE 70 CL","JACK DANIEL'S TENNESSEE HONEY 70 CL"]},"Ron":{"unit":"botellas","items":["RON BARCELÓ AÑEJO 70 CL","RON BARCELÓ IMPERIAL","BARCELÓ CREAM 3/4","RON BARCELÓ IMPERIAL MIZUNARA 70 CL"]},"Ginebra":{"unit":"botellas","items":["GIN HENDRICK'S 70 CL","MACARONESIA WHITE GIN 70 CL","GINEBRA BULLDOG 70 CL","HENDRICK'S ANOTHER 70 CL"]},"Vermut y aperitivos":{"unit":"botellas","items":["VERMOUTH YZAGUIRRE ROJO 1 L","VERMOUTH YZAGUIRRE BLANCO 1 L","APEROL 70 CL","CINZANO PRO SPRITZ 70 CL","LARANXA TRIPLE SECO 70 CL"]},"Otros":{"unit":"botellas","items":["AMARENA OPALINE 600 G"]}}},"COCA COLA":{"color":"#EF4444","cats":{"Coca-Cola":{"unit":"cajas","items":["COCA-COLA VR 237 ML × 24","COCA-COLA ZERO VR 237 ML × 24","COCA-COLA ZERO ZERO VR 237 ML × 24","COCA-COLA LIGHT VR 237 ML × 24"]},"Refrescos y zumos":{"unit":"cajas","items":["FANTA NARANJA VR 237 ML × 24","FANTA LIMÓN VR 237 ML × 24","SPRITE VR 200 ML × 24","AQUARIUS VR 300 ML × 24","AQUARIUS NARANJA VR 300 ML × 24","MINUTE MAID LIMÓN & NARANJA 200 ML × 24"]},"Agua y mixers":{"unit":"cajas","items":["AQUABONA PET 350 ML × 24","ROYAL BLISS SIGNATURE TONIC 200 ML × 24","ROYAL BLISS NARANJA 200 ML × 24","ROYAL BLISS LEMON MIXER 200 ML × 24","ROYAL BLISS AROMATIC BERRY 200 ML × 24","ROYAL BLISS SIGNATURE TONIC ZERO 200 ML × 24"]},"Monster Energy":{"unit":"cajas","items":["MONSTER ENERGY 250 ML × 24","MONSTER MANGO LOCO 250 ML × 24","MONSTER ENERGY 500 ML × 24","MONSTER MANGO LOCO 500 ML × 24","MONSTER ULTRA WHITE ZERO 250 ML × 24","MONSTER ULTRA WHITE ZERO 500 ML × 24"]}}},"JUAN HIDALGO":{"color":"#A16207","cats":{"Aperitivos":{"unit":"bolsas","items":["PICADITA MIEL-MOSTAZA 1 KG","PATATAS HH BOLSA 500 G","KONOS FRITOS LENG-D'OR BOLSA 790 G","KONOS HH BOLSA 900 G"]},"Golosinas":{"unit":"bolsas","items":["GOMAS FINI MIX PICA SOUR LITTLE MIX 1 KG","CONGUITOS BLANCOS GRANEL 1 KG","CONGUITOS ORIGINAL CHOCOLATE GRANEL 1 KG"]},"Complementarios":{"unit":"unidades","items":["AZÚCAR 1 KG"]}}},"SANCHEZ MONTERO":{"color":"#0EA5E9","cats":{"Cerveza Ámbar":{"unit":"cajas","items":["ÁMBAR 0,0 TOSTADA 1/3 RET. 24 BOT.","ÁMBAR LA 125 1/3 12 BOT. NR","ÁMBAR RADLER 1/3 RET. 24 BOT.","ÁMBAR ESPECIAL LN 1/3 RET. 24 BOT."]}}}};
 
-const PROVS = Object.keys(DATA);
+const MANUAL_PROV = 'MANUAL';
+const MANUAL_COLOR = '#A855F7';
+const PROVS = [...Object.keys(DATA), MANUAL_PROV];
 const STORAGE_KEY = 'inventario_irish_tavern_v1';
+const MANUAL_STORAGE_KEY = 'inventario_irish_tavern_manual_v1';
 
 let currentProv = PROVS[0];
 let quantities = {};
+let manualProducts = [];
 
 // Load from localStorage
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) quantities = JSON.parse(saved);
+    const savedManual = localStorage.getItem(MANUAL_STORAGE_KEY);
+    if (savedManual) manualProducts = JSON.parse(savedManual);
   } catch(e) { quantities = {}; }
 }
 function saveData() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(quantities)); } catch(e) {}
+}
+function saveManualData() {
+  try { localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(manualProducts)); } catch(e) {}
 }
 
 function key(prov, name) { return prov + '||' + name; }
@@ -333,12 +438,19 @@ function formatDate() {
   return d.toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short' }).toUpperCase();
 }
 
+function getProvColor(prov) { return prov === MANUAL_PROV ? MANUAL_COLOR : DATA[prov].color; }
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;'
+  })[ch]);
+}
+
 function buildNav() {
   const nav = document.getElementById('bottomnav');
   nav.innerHTML = PROVS.map(p => {
     const label = p.length > 8 ? p.substring(0,8) + '…' : p;
     return `<button class="nav-btn${p===currentProv?' active':''}" data-prov="${p}"
-      onclick="switchProv('${p}')" style="--nav-color:${DATA[p].color}">
+      onclick="switchProv('${p}')" style="--nav-color:${getProvColor(p)}">
       <div class="nav-bar"></div>
       <div class="nav-label">${label}</div>
       <div class="nav-dot"></div>
@@ -348,7 +460,7 @@ function buildNav() {
 
 function switchProv(prov) {
   currentProv = prov;
-  const color = DATA[prov].color;
+  const color = getProvColor(prov);
   document.documentElement.style.setProperty('--active', color);
   document.documentElement.style.setProperty('--active-dim', hexToRgba(color, 0.1));
   document.getElementById('search').value = '';
@@ -359,6 +471,10 @@ function switchProv(prov) {
 
 function renderList(filter) {
   const q = (filter || document.getElementById('search').value || '').toLowerCase().trim();
+  if (currentProv === MANUAL_PROV) {
+    renderManualList(q);
+    return;
+  }
   const prov = DATA[currentProv];
   const color = DATA[currentProv].color;
   let html = '';
@@ -401,6 +517,108 @@ function renderList(filter) {
   document.getElementById('scroll-area').innerHTML = html;
 }
 
+function renderManualList(q = '') {
+  const filtered = manualProducts.filter(p =>
+    !q || `${p.name} ${p.category} ${p.unit}`.toLowerCase().includes(q)
+  );
+  let html = `<div class="manual-toolbar">
+    <button class="manual-add-btn" onclick="openManualPanel()">＋ AÑADIR PRODUCTO MANUAL</button>
+  </div>`;
+
+  if (!manualProducts.length) {
+    html += `<div class="manual-help">AÑADE AQUÍ LOS PRODUCTOS QUE NO APARECEN EN LAS PESTAÑAS DE PROVEEDOR.</div>`;
+  } else if (!filtered.length) {
+    html += `<div class="manual-help">NO HAY PRODUCTOS MANUALES QUE COINCIDAN CON LA BÚSQUEDA.</div>`;
+  }
+
+  const groups = {};
+  filtered.forEach(product => {
+    const groupKey = `${product.category}||${product.unit}`;
+    (groups[groupKey] ||= []).push(product);
+  });
+
+  Object.entries(groups).forEach(([groupKey, products]) => {
+    const [category, unit] = groupKey.split('||');
+    const hasItems = products.some(p => getQty(MANUAL_PROV, p.id) > 0);
+    html += `<div class="cat-header">
+      <div class="cat-label">${escapeHtml(category)}</div>
+      <div class="cat-line"></div>
+      <div class="unit-pill ${hasItems?'active':''}">${escapeHtml(unit.toUpperCase())}</div>
+    </div>`;
+
+    products.forEach(product => {
+      const qty = getQty(MANUAL_PROV, product.id);
+      const hasQty = qty > 0;
+      html += `<div class="prod-row ${hasQty?'has-qty':''}">
+        <div class="prod-info">
+          <div class="prod-name">${escapeHtml(product.name)}</div>
+          <div class="prod-unit">${escapeHtml(product.unit)}</div>
+        </div>
+        <button class="manual-delete" aria-label="Eliminar ${escapeHtml(product.name)}"
+          onclick="confirmDeleteManual('${product.id}')">✕</button>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="adj('${MANUAL_PROV}','${product.id}',-1)">−</button>
+          <div class="qty-sep"></div>
+          <input class="qty-val ${hasQty?'active':''}" type="number" min="0"
+            value="${qty||''}" placeholder="0"
+            onchange="setQtyR('${MANUAL_PROV}','${product.id}',this.value)"
+            onfocus="this.select()">
+          <div class="qty-sep"></div>
+          <button class="qty-btn" onclick="adj('${MANUAL_PROV}','${product.id}',1)">+</button>
+        </div>
+      </div>`;
+    });
+  });
+
+  document.getElementById('scroll-area').innerHTML = html;
+}
+
+function openManualPanel() {
+  document.getElementById('manual-panel').classList.add('open');
+  setTimeout(() => document.getElementById('manual-name').focus(), 100);
+}
+function closeManualPanel() { document.getElementById('manual-panel').classList.remove('open'); }
+function closeManualPanelIfBg(e) { if (e.target.id === 'manual-panel') closeManualPanel(); }
+function toggleCustomUnit() {
+  const isCustom = document.getElementById('manual-unit').value === 'otro';
+  document.getElementById('custom-unit-field').style.display = isCustom ? 'block' : 'none';
+  document.getElementById('manual-custom-unit').required = isCustom;
+}
+function saveManualProduct(event) {
+  event.preventDefault();
+  const name = document.getElementById('manual-name').value.trim().toLocaleUpperCase('es-ES');
+  const category = (document.getElementById('manual-category').value.trim() || 'OTROS').toLocaleUpperCase('es-ES');
+  const selectedUnit = document.getElementById('manual-unit').value;
+  const customUnit = document.getElementById('manual-custom-unit').value.trim().toLocaleLowerCase('es-ES');
+  const unit = selectedUnit === 'otro' ? customUnit : selectedUnit;
+  if (!name || !unit) return;
+  if (manualProducts.some(p => p.name.toLocaleUpperCase('es-ES') === name)) {
+    showToast('Ese producto ya existe');
+    return;
+  }
+  const id = `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
+  manualProducts.push({ id, name, category, unit });
+  manualProducts.sort((a,b) => a.category.localeCompare(b.category, 'es') || a.name.localeCompare(b.name, 'es'));
+  saveManualData();
+  document.getElementById('manual-form').reset();
+  toggleCustomUnit();
+  closeManualPanel();
+  renderList();
+  showToast('Producto añadido');
+}
+function confirmDeleteManual(id) {
+  const product = manualProducts.find(p => p.id === id);
+  if (!product || !confirm(`¿Eliminar ${product.name} de la lista manual?`)) return;
+  manualProducts = manualProducts.filter(p => p.id !== id);
+  delete quantities[key(MANUAL_PROV, id)];
+  saveManualData();
+  saveData();
+  updateNav();
+  updateBadge();
+  renderList();
+  showToast('Producto eliminado');
+}
+
 function adj(prov, name, delta) {
   setQty(prov, name, Math.max(0, getQty(prov, name) + delta));
   renderList();
@@ -429,21 +647,22 @@ function openReport() {
     const items = Object.entries(quantities)
       .filter(([k]) => k.startsWith(prov + '||'))
       .map(([k, v]) => {
-        const name = k.split('||')[1];
-        const unit = getUnit(prov, name);
+        const ref = k.split('||')[1];
+        const name = getProductName(prov, ref);
+        const unit = getUnit(prov, ref);
         return { name, qty: v, unit };
       });
     if (!items.length) return;
     hasAny = true;
-    const c = DATA[prov].color;
+    const c = getProvColor(prov);
     html += `<div class="report-prov-block">
       <div class="report-prov-name" style="color:${c};background:${hexToRgba(c,.12)}">${prov}</div>`;
     items.forEach(i => {
       html += `<div class="report-item">
-        <span class="report-item-name">${i.name}</span>
+        <span class="report-item-name">${escapeHtml(i.name)}</span>
         <div class="report-item-right">
           <span class="report-item-qty" style="color:${c}">${i.qty}</span>
-          <span class="report-item-unit">${i.unit}</span>
+          <span class="report-item-unit">${escapeHtml(i.unit)}</span>
         </div>
       </div>`;
     });
@@ -458,11 +677,16 @@ function closeReport() { document.getElementById('report-panel').classList.remov
 function closePanelIfBg(e) { if (e.target.id === 'report-panel') closeReport(); }
 
 function getUnit(prov, name) {
+  if (prov === MANUAL_PROV) return manualProducts.find(p => p.id === name)?.unit || '';
   const cats = DATA[prov]?.cats || {};
   for (const [cat, cdata] of Object.entries(cats)) {
     if (cdata.items.includes(name)) return cdata.unit;
   }
   return '';
+}
+function getProductName(prov, name) {
+  if (prov === MANUAL_PROV) return manualProducts.find(p => p.id === name)?.name || 'PRODUCTO MANUAL';
+  return name;
 }
 
 function confirmClear() {
@@ -483,7 +707,10 @@ function exportInventory() {
   PROVS.forEach(prov => {
     const items = Object.entries(quantities)
       .filter(([k]) => k.startsWith(prov + '||'))
-      .map(([k, v]) => ({ name: k.split('||')[1], qty: v, unit: getUnit(prov, k.split('||')[1]) }));
+      .map(([k, v]) => {
+        const ref = k.split('||')[1];
+        return { name: getProductName(prov, ref), qty: v, unit: getUnit(prov, ref) };
+      });
     if (!items.length) return;
     hasAny = true;
     lines.push(`\n── ${prov} ──`);
@@ -514,7 +741,7 @@ document.getElementById('search').addEventListener('input', e => renderList(e.ta
 // Init
 loadData();
 document.getElementById('date-badge').textContent = formatDate();
-const initColor = DATA[PROVS[0]].color;
+const initColor = getProvColor(PROVS[0]);
 document.documentElement.style.setProperty('--active', initColor);
 document.documentElement.style.setProperty('--active-dim', hexToRgba(initColor, 0.1));
 buildNav();
