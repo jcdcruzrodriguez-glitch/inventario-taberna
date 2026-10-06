@@ -128,6 +128,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .prod-unit {
   font-family: var(--font-mono); font-size: 10px; color: var(--text3); margin-top: 1px;
 }
+.pack-summary { color: var(--text2); font-size: 11px; margin-top: 3px; }
+.count-note { padding: 5px 14px 8px; color: var(--text2); font-size: 11px; line-height: 1.4; }
 .qty-controls {
   display: flex; align-items: center;
   background: var(--bg3); border: 1px solid var(--border);
@@ -141,7 +143,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .qty-btn:active { background: var(--border); }
 .qty-sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
 .qty-val {
-  width: 40px; text-align: center;
+  width: 58px; text-align: center;
   font-family: var(--font-mono); font-size: 17px; font-weight: 500;
   color: var(--text); background: transparent; border: none; outline: none;
   -moz-appearance: textfield;
@@ -180,7 +182,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 }
 .manual-panel.open { display: flex; }
 .manual-sheet {
-  width: 100%; background: var(--bg2); border-radius: 18px 18px 0 0;
+  width: 100%; max-height: 90vh; overflow-y: auto; background: var(--bg2); border-radius: 18px 18px 0 0;
   border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom, 16px);
   animation: slideup .22s ease-out;
 }
@@ -371,10 +373,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
           placeholder="Ej.: LIMPIEZA, BEBIDAS, ALMACÉN">
       </label>
       <label class="form-field">
-        <span class="form-label">Cómo se contabiliza</span>
+        <span class="form-label">Unidad que vas a contar</span>
         <select class="form-control" id="manual-unit" onchange="toggleCustomUnit()">
           <option value="unidades">Unidades</option>
-          <option value="cajas">Cajas</option>
           <option value="botellas">Botellas</option>
           <option value="barriles">Barriles</option>
           <option value="bolsas">Bolsas</option>
@@ -390,6 +391,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
         <span class="form-label">Nombre de la medida</span>
         <input class="form-control" id="manual-custom-unit" maxlength="30"
           placeholder="Ej.: bandejas, rollos, cubos">
+      </label>
+      <label class="form-field">
+        <span class="form-label">Unidades por caja (si se compra en cajas)</span>
+        <input class="form-control" id="manual-pack-size" type="number" min="1" max="1000" step="1"
+          placeholder="Ej.: 24 botellas por caja">
       </label>
       <div class="form-actions">
         <button class="btn-cancel" type="button" onclick="closeManualPanel()">CANCELAR</button>
@@ -416,11 +422,13 @@ const PROVS = [...Object.keys(DATA), MANUAL_PROV];
 const STORAGE_KEY = 'inventario_irish_tavern_v1';
 const MANUAL_STORAGE_KEY = 'inventario_irish_tavern_manual_v1';
 const RETIRED_STORAGE_KEY = 'inventario_irish_tavern_retired_v1';
+const PACK_STORAGE_KEY = 'inventario_irish_tavern_pack_sizes_v1';
 
 let currentProv = PROVS[0];
 let quantities = {};
 let manualProducts = [];
 let retiredProducts = [];
+let packSizes = {};
 let editingManualId = null;
 let showRetired = false;
 
@@ -429,11 +437,19 @@ function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) quantities = JSON.parse(saved);
+  } catch(e) { quantities = {}; }
+  try {
     const savedManual = localStorage.getItem(MANUAL_STORAGE_KEY);
     if (savedManual) manualProducts = JSON.parse(savedManual).map(p => ({...p, supplier: DATA[p.supplier] ? p.supplier : MANUAL_PROV}));
+  } catch(e) { manualProducts = []; }
+  try {
     const savedRetired = localStorage.getItem(RETIRED_STORAGE_KEY);
     if (savedRetired) retiredProducts = JSON.parse(savedRetired);
-  } catch(e) { quantities = {}; }
+  } catch(e) { retiredProducts = []; }
+  try {
+    const savedPackSizes = localStorage.getItem(PACK_STORAGE_KEY);
+    if (savedPackSizes) packSizes = JSON.parse(savedPackSizes);
+  } catch(e) { packSizes = {}; }
 }
 function saveData() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(quantities)); } catch(e) {}
@@ -444,6 +460,9 @@ function saveManualData() {
 function saveRetiredData() {
   try { localStorage.setItem(RETIRED_STORAGE_KEY, JSON.stringify(retiredProducts)); } catch(e) {}
 }
+function savePackSizes() {
+  try { localStorage.setItem(PACK_STORAGE_KEY, JSON.stringify(packSizes)); } catch(e) {}
+}
 function isRetired(prov, name) { return retiredProducts.includes(key(prov, name)); }
 function manualSupplier(product) { return DATA[product.supplier] ? product.supplier : MANUAL_PROV; }
 function visibleEntries(prov) {
@@ -453,9 +472,9 @@ function visibleEntries(prov) {
     const source = k.slice(0, split), ref = k.slice(split + 2);
     if (source === MANUAL_PROV) {
       const product = manualProducts.find(p => p.id === ref);
-      return product && manualSupplier(product) === prov ? [{name: product.name, qty, unit: product.unit}] : [];
+      return product && manualSupplier(product) === prov ? [{name: product.name, qty, unit: getUnit(source, ref), packSize: getPackSize(source, ref)}] : [];
     }
-    return source === prov && !isRetired(source, ref) ? [{name: ref, qty, unit: getUnit(source, ref)}] : [];
+    return source === prov && !isRetired(source, ref) ? [{name: ref, qty, unit: getUnit(source, ref), packSize: getPackSize(source, ref)}] : [];
   });
 }
 
@@ -468,6 +487,64 @@ function setQty(prov, name, val) {
   saveData();
   updateNav();
   updateBadge();
+}
+
+function inferPackSize(name) {
+  const text = name.toUpperCase();
+  let match = text.match(/\bPACK\s*(\d{1,3})\s*[X×]\s*(\d{1,3})\b/);
+  if (match) return Number(match[1]) * Number(match[2]);
+  match = text.match(/\bCAJA\s*(\d{1,3})\s*[X×]\s*\d{1,3}\s*(?:CL|ML)\b/);
+  if (match) return Number(match[1]);
+  match = text.match(/\bCAJA\s*(\d{1,3})\b/);
+  if (match) return Number(match[1]);
+  match = text.match(/\b(\d{1,3})\s*[X×]\s*(?:\d{1,3}\s*(?:CL|ML)\b|0[,.]\d+\s*L\b)/);
+  if (match) return Number(match[1]);
+  match = text.match(/\b(\d{1,3})\s*(?:BOT(?:ELLAS?)?\.?|U(?:D)?\.?)(?=\s|$)/);
+  if (match) return Number(match[1]);
+  match = text.match(/\bC(\d{2})\b/);
+  if (match) return Number(match[1]);
+  match = text.match(/[X×]\s*(\d{1,3})(?=\s|$)/);
+  return match ? Number(match[1]) : null;
+}
+function getPackSize(prov, name) {
+  const productKey = key(prov, name);
+  if (Object.prototype.hasOwnProperty.call(packSizes, productKey)) return packSizes[productKey] || null;
+  if (prov === MANUAL_PROV) {
+    const product = manualProducts.find(p => p.id === name);
+    if (Number.isInteger(product?.packSize) && product.packSize > 0) return product.packSize;
+  }
+  return inferPackSize(getProductName(prov, name));
+}
+function unitLabel(unit, amount) {
+  if (amount !== 1) return unit;
+  const singular = {botellas:'botella', latas:'lata', unidades:'unidad', barriles:'barril', bolsas:'bolsa', paquetes:'paquete', garrafas:'garrafa'};
+  return singular[unit] || unit;
+}
+function caseBreakdown(qty, packSize, unit) {
+  if (!packSize || qty < 1) return '';
+  const cases = Math.floor(qty / packSize);
+  const loose = qty % packSize;
+  return `${cases} ${cases === 1 ? 'caja' : 'cajas'} + ${loose} ${unitLabel(unit, loose)} ${loose === 1 ? 'suelta' : 'sueltas'}`;
+}
+function formatUnit(prov, name) {
+  const unit = getUnit(prov, name);
+  const packSize = getPackSize(prov, name);
+  return `${unit}${packSize ? ` · ${packSize} por caja` : ''}`;
+}
+function editPackSize(prov, encodedName) {
+  const name = decodeURIComponent(encodedName);
+  const current = getPackSize(prov, name);
+  const raw = prompt(`¿Cuántas ${getUnit(prov, name)} trae una caja de “${getProductName(prov, name)}”?\nEscribe 0 si no se compra en cajas.`, current || '');
+  if (raw === null) return;
+  const value = Number(raw.trim());
+  if (!Number.isInteger(value) || value < 0 || value > 1000 || raw.trim() === '') {
+    showToast('Introduce un número entero entre 0 y 1000');
+    return;
+  }
+  packSizes[key(prov, name)] = value;
+  savePackSizes();
+  renderList();
+  showToast(value ? `Caja de ${value} guardada` : 'Sin formato de caja');
 }
 
 function hexToRgba(hex, a) {
@@ -520,7 +597,7 @@ function renderList(filter) {
   }
   const prov = DATA[currentProv];
   const color = DATA[currentProv].color;
-  let html = catalogToolbar();
+  let html = catalogToolbar() + `<div class="count-note">ANOTA BOTELLAS O LATAS SUELTAS. SI ANTES APUNTASTE CAJAS, REVISA ESAS CANTIDADES.</div>`;
 
   Object.entries(prov.cats).forEach(([cat, cdata]) => {
     const filtered = cdata.items.filter(n => !isRetired(currentProv, n) && (!q || n.toLowerCase().includes(q)));
@@ -530,18 +607,23 @@ function renderList(filter) {
     html += `<div class="cat-header">
       <div class="cat-label">${cat}</div>
       <div class="cat-line"></div>
-      <div class="unit-pill ${hasItems?'active':''}">${cdata.unit.toUpperCase()}</div>
+      <div class="unit-pill ${hasItems?'active':''}">${cdata.unit === 'cajas' ? 'UNIDADES SUELTAS' : cdata.unit.toUpperCase()}</div>
     </div>`;
 
     filtered.forEach((name, i) => {
       const qty = getQty(currentProv, name);
       const hasQty = qty > 0;
       const esc = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const encodedName = encodeURIComponent(name).replace(/'/g, '%27');
+      const unit = getUnit(currentProv, name);
+      const packSize = getPackSize(currentProv, name);
+      const breakdown = caseBreakdown(qty, packSize, unit);
       html += `<div class="prod-row ${hasQty?'has-qty':''}">
         <div class="prod-info">
           <div class="prod-name">${name}</div>
-          <div class="prod-unit">${cdata.unit}</div>
-          <div class="product-actions"><button type="button" aria-label="Retirar ${escapeHtml(name)}" onclick="retireProduct('${currentProv}','${encodeURIComponent(name)}')">QUITAR</button></div>
+          <div class="prod-unit">${escapeHtml(formatUnit(currentProv, name))}</div>
+          ${breakdown ? `<div class="pack-summary">${escapeHtml(breakdown)}</div>` : ''}
+          <div class="product-actions"><button type="button" onclick="editPackSize('${currentProv}','${encodedName}')">FORMATO CAJA</button><button type="button" aria-label="Retirar ${escapeHtml(name)}" onclick="retireProduct('${currentProv}','${encodedName}')">QUITAR</button></div>
         </div>
         <div class="qty-controls">
           <button class="qty-btn" onclick="adj('${currentProv}','${esc}',-1)">−</button>
@@ -563,7 +645,7 @@ function renderList(filter) {
 }
 
 function renderManualList(q = '') {
-  let html = catalogToolbar() + manualRows(MANUAL_PROV, q);
+  let html = catalogToolbar() + `<div class="count-note">ANOTA LAS UNIDADES SUELTAS; LA CAJA SE CALCULA CON EL FORMATO INDICADO.</div>` + manualRows(MANUAL_PROV, q);
   if (!manualProducts.some(p => manualSupplier(p) === MANUAL_PROV)) {
     html += `<div class="manual-help">AQUÍ APARECEN LOS PRODUCTOS SIN PROVEEDOR ASIGNADO.</div>`;
   }
@@ -578,7 +660,8 @@ function toggleRetired() { showRetired = !showRetired; renderList(); }
 function retiredRows(prov) {
   return retiredProducts.filter(k => k.startsWith(prov + '||')).map(k => {
     const name = k.slice(prov.length + 2);
-    return `<div class="retired-row"><span>${escapeHtml(name)}</span><button type="button" onclick="restoreProduct('${prov}','${encodeURIComponent(name)}')">RESTAURAR</button></div>`;
+    const encodedName = encodeURIComponent(name).replace(/'/g, '%27');
+    return `<div class="retired-row"><span>${escapeHtml(name)}</span><button type="button" onclick="restoreProduct('${prov}','${encodedName}')">RESTAURAR</button></div>`;
   }).join('');
 }
 function manualRows(prov, q) {
@@ -587,7 +670,7 @@ function manualRows(prov, q) {
 
   const groups = {};
   filtered.forEach(product => {
-    const groupKey = `${product.category}||${product.unit}`;
+    const groupKey = `${product.category}||${getUnit(MANUAL_PROV, product.id)}`;
     (groups[groupKey] ||= []).push(product);
   });
 
@@ -603,10 +686,12 @@ function manualRows(prov, q) {
     products.forEach(product => {
       const qty = getQty(MANUAL_PROV, product.id);
       const hasQty = qty > 0;
+      const breakdown = caseBreakdown(qty, getPackSize(MANUAL_PROV, product.id), getUnit(MANUAL_PROV, product.id));
       html += `<div class="prod-row ${hasQty?'has-qty':''}">
         <div class="prod-info">
           <div class="prod-name">${escapeHtml(product.name)}</div>
-          <div class="prod-unit">${escapeHtml(product.unit)}</div>
+          <div class="prod-unit">${escapeHtml(formatUnit(MANUAL_PROV, product.id))}</div>
+          ${breakdown ? `<div class="pack-summary">${escapeHtml(breakdown)}</div>` : ''}
           <div class="product-actions"><button type="button" onclick="openManualPanel('${product.id}')">EDITAR</button><button type="button" aria-label="Eliminar ${escapeHtml(product.name)}" onclick="confirmDeleteManual('${product.id}')">QUITAR</button></div>
         </div>
         <div class="qty-controls">
@@ -649,8 +734,9 @@ function openManualPanel(id = null) {
   document.getElementById('manual-name').value = product?.name || '';
   document.getElementById('manual-category').value = product?.category || '';
   const options = [...document.getElementById('manual-unit').options].map(o => o.value);
-  document.getElementById('manual-unit').value = product && options.includes(product.unit) ? product.unit : product ? 'otro' : 'unidades';
-  document.getElementById('manual-custom-unit').value = product && !options.includes(product.unit) ? product.unit : '';
+  document.getElementById('manual-unit').value = product?.unit === 'cajas' ? 'unidades' : product && options.includes(product.unit) ? product.unit : product ? 'otro' : 'unidades';
+  document.getElementById('manual-custom-unit').value = product && !options.includes(product.unit) && product.unit !== 'cajas' ? product.unit : '';
+  document.getElementById('manual-pack-size').value = product?.packSize || '';
   document.getElementById('manual-save').textContent = product ? 'GUARDAR CAMBIOS' : 'GUARDAR PRODUCTO';
   document.querySelector('#manual-panel .report-title').textContent = product ? 'EDITAR PRODUCTO' : 'AÑADIR PRODUCTO';
   toggleCustomUnit();
@@ -672,7 +758,13 @@ function saveManualProduct(event) {
   const customUnit = document.getElementById('manual-custom-unit').value.trim().toLocaleLowerCase('es-ES');
   const unit = selectedUnit === 'otro' ? customUnit : selectedUnit;
   const supplier = document.getElementById('manual-supplier').value;
+  const packInput = document.getElementById('manual-pack-size').value.trim();
+  const packSize = packInput ? Number(packInput) : null;
   if (!name || !unit) return;
+  if (packInput && (!Number.isInteger(packSize) || packSize < 1 || packSize > 1000)) {
+    showToast('Indica las unidades por caja');
+    return;
+  }
   if (manualProducts.some(p => p.id !== editingManualId && p.name.toLocaleUpperCase('es-ES') === name)) {
     showToast('Ese producto ya existe');
     return;
@@ -682,10 +774,10 @@ function saveManualProduct(event) {
     return;
   }
   if (editingManualId) {
-    Object.assign(manualProducts.find(p => p.id === editingManualId), {name, category, unit, supplier});
+    Object.assign(manualProducts.find(p => p.id === editingManualId), {name, category, unit, supplier, packSize});
   } else {
     const id = `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
-    manualProducts.push({ id, name, category, unit, supplier });
+    manualProducts.push({ id, name, category, unit, supplier, packSize });
   }
   manualProducts.sort((a,b) => a.category.localeCompare(b.category, 'es') || a.name.localeCompare(b.name, 'es'));
   saveManualData();
@@ -743,6 +835,7 @@ function openReport() {
     html += `<div class="report-prov-block">
       <div class="report-prov-name" style="color:${c};background:${hexToRgba(c,.12)}">${prov}</div>`;
     items.forEach(i => {
+      const breakdown = caseBreakdown(i.qty, i.packSize, i.unit);
       html += `<div class="report-item">
         <span class="report-item-name">${escapeHtml(i.name)}</span>
         <div class="report-item-right">
@@ -750,6 +843,7 @@ function openReport() {
           <span class="report-item-unit">${escapeHtml(i.unit)}</span>
         </div>
       </div>`;
+      if (breakdown) html += `<div class="pack-summary">${escapeHtml(breakdown)} · ${i.packSize} por caja</div>`;
     });
     html += '</div>';
   });
@@ -762,10 +856,16 @@ function closeReport() { document.getElementById('report-panel').classList.remov
 function closePanelIfBg(e) { if (e.target.id === 'report-panel') closeReport(); }
 
 function getUnit(prov, name) {
-  if (prov === MANUAL_PROV) return manualProducts.find(p => p.id === name)?.unit || '';
+  if (prov === MANUAL_PROV) {
+    const unit = manualProducts.find(p => p.id === name)?.unit || '';
+    return unit === 'cajas' ? 'unidades' : unit;
+  }
   const cats = DATA[prov]?.cats || {};
   for (const [cat, cdata] of Object.entries(cats)) {
-    if (cdata.items.includes(name)) return cdata.unit;
+    if (cdata.items.includes(name)) {
+      if (cdata.unit !== 'cajas') return cdata.unit;
+      return /\b(?:LATA|LATAS|MONSTER)\b/i.test(name) ? 'latas' : 'botellas';
+    }
   }
   return '';
 }
@@ -794,7 +894,10 @@ function exportInventory() {
     if (!items.length) return;
     hasAny = true;
     lines.push(`\n── ${prov} ──`);
-    items.forEach(i => lines.push(`  ${i.name}: ${i.qty} ${i.unit}`));
+    items.forEach(i => {
+      const breakdown = caseBreakdown(i.qty, i.packSize, i.unit);
+      lines.push(`  ${i.name}: ${i.qty} ${i.unit}${breakdown ? ` (${breakdown}; ${i.packSize} por caja)` : ''}`);
+    });
   });
   if (!hasAny) { showToast('Sin datos'); return; }
   const text = lines.join('\n');
@@ -818,7 +921,7 @@ function exportCatalogChanges() {
       return {supplier: k.slice(0, split), name: k.slice(split + 2)};
     }),
     manual: manualProducts.filter(p => manualSupplier(p) !== MANUAL_PROV)
-      .map(p => ({id: p.id, name: p.name, category: p.category, unit: p.unit, supplier: manualSupplier(p)}))
+      .map(p => ({id: p.id, name: p.name, category: p.category, unit: getUnit(MANUAL_PROV, p.id), unitsPerCase: getPackSize(MANUAL_PROV, p.id), supplier: manualSupplier(p)}))
   };
   const blob = new Blob([JSON.stringify(changes, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
